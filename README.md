@@ -4,15 +4,21 @@ HTTP MCP server that wraps the [Laya](https://github.com/NandhaKishorM/laya) dec
 
 ## What it does
 
-Exposes 5 tools to your agent:
+Exposes 11 tools to your agent — 5 upstream-preset + 6 coding-specific (custom question schemas):
 
-| Tool             | Purpose                                              | Latency  |
-| ---------------- | ---------------------------------------------------- | -------- |
-| `laya_guard`     | Prompt-injection / jailbreak detection               | ~33 ms   |
-| `laya_route`     | Decide "small model" vs "frontier model" per prompt  | ~33 ms   |
-| `laya_moderate`  | Toxicity / harassment / threats                      | ~33 ms   |
-| `laya_triage`    | Intent / urgency / churn / frustration (support)       | ~33 ms   |
-| `laya_email`     | Email-specific intent / urgency / needs-reply        | ~33 ms   |
+| Tool                  | Purpose                                              | Latency  | Source     |
+| --------------------- | ---------------------------------------------------- | -------- | ---------- |
+| `laya_guard`          | Prompt-injection / jailbreak detection               | ~33 ms   | preset     |
+| `laya_route`          | Decide "small model" vs "frontier model" per prompt  | ~33 ms   | preset     |
+| `laya_moderate`       | Toxicity / harassment / threats                      | ~33 ms   | preset     |
+| `laya_triage`         | Intent / urgency / churn / frustration (support)       | ~33 ms   | preset     |
+| `laya_email`          | Email-specific intent / urgency / needs-reply        | ~33 ms   | preset     |
+| `laya_review_tone`    | Code review tone + priority                           | ~33 ms   | custom     |
+| `laya_bug_severity`   | Bug severity + area                                  | ~33 ms   | custom     |
+| `laya_commit_classify`| Commit message type / scope / risk                    | ~33 ms   | custom     |
+| `laya_test_priority`  | Test run priority + reason                            | ~33 ms   | custom     |
+| `laya_secret_risk`    | Detect leaked credentials in text                    | ~33 ms   | custom     |
+| `laya_diff_intent`    | PR diff intent / scope / risk                         | ~33 ms   | custom     |
 
 All tools run in-process via Laya's encoder checkpoints (ModernBERT-large / mmBERT-base). One HTTP endpoint, single model load per process.
 

@@ -4,15 +4,21 @@ If you're an AI coding agent (Aider, Cursor, Claude Code, Pi, etc.) working in t
 
 ## What this project is
 
-**LayaMCP** is an HTTP MCP server that wraps the [Laya](https://github.com/NandhaKishorM/laya) decision engine for use with Pi (and any other MCP client). It exposes 5 tools over HTTP at `http://127.0.0.1:8765` by default:
+**LayaMCP** is an HTTP MCP server that wraps the [Laya](https://github.com/NandhaKishorM/laya) decision engine for use with Pi (and any other MCP client). It exposes **11 tools** over HTTP at `http://127.0.0.1:8765` by default — 5 upstream-preset + 6 coding-specific.
 
-| Tool | Purpose |
-|---|---|
-| `laya_guard` | Prompt-injection / jailbreak detection |
-| `laya_route` | Cheap-vs-frontier model routing |
-| `laya_moderate` | Toxicity / harassment / threats |
-| `laya_triage` | Support-ticket classification |
-| `laya_email` | Email triage |
+| Tool | Purpose | Source |
+|---|---|---|
+| `laya_guard` | Prompt-injection / jailbreak detection | upstream preset |
+| `laya_route` | Cheap-vs-frontier model routing | upstream preset |
+| `laya_moderate` | Toxicity / harassment / threats | upstream preset |
+| `laya_triage` | Support-ticket classification | upstream preset |
+| `laya_email` | Email triage | upstream preset |
+| `laya_review_tone` | Code review tone + priority | custom questions |
+| `laya_bug_severity` | Bug severity + area | custom questions |
+| `laya_commit_classify` | Commit message type / scope / risk | custom questions |
+| `laya_test_priority` | Test run priority + reason | custom questions |
+| `laya_secret_risk` | Detect leaked credentials in text | custom questions |
+| `laya_diff_intent` | PR diff intent / scope / risk | custom questions |
 
 Models run in-process via `laya.Router` (~33 ms per call on T4). The plugin architecture means adding a tool is a 1-file change.
 

@@ -9,18 +9,37 @@ That's the only edit needed — schemas, routes, and dispatch all derive
 from the class.
 """
 from .base import Tool
+from .bug_severity import BugSeverityTool
+from .commit_classify import CommitClassifyTool
+from .diff_intent import DiffIntentTool
 from .email import EmailTool
 from .guard import GuardTool
 from .moderate import ModerateTool
+from .review_tone import ReviewToneTool
 from .route import RouteTool
+from .secret_risk import SecretRiskTool
+from .test_priority import TestPriorityTool
 from .triage import TriageTool
 
-TOOLS: list[Tool] = [
+# Tools backed by upstream Laya presets.
+_PRESET_TOOLS: list[Tool] = [
     GuardTool(),
     RouteTool(),
     ModerateTool(),
     TriageTool(),
     EmailTool(),
 ]
+
+# Tools backed by custom Laya question schemas (coding-specific).
+_CUSTOM_TOOLS: list[Tool] = [
+    ReviewToneTool(),
+    BugSeverityTool(),
+    CommitClassifyTool(),
+    TestPriorityTool(),
+    SecretRiskTool(),
+    DiffIntentTool(),
+]
+
+TOOLS: list[Tool] = _PRESET_TOOLS + _CUSTOM_TOOLS
 
 __all__ = ["TOOLS", "Tool"]

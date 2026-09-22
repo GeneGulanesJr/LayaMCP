@@ -160,6 +160,192 @@ class EmailOutput(BaseModel):
 
 ---
 
+## Coding-specific tools
+
+The six tools below use **custom Laya question schemas** (not upstream presets) and are tuned for coding workflows. They all go through `LayaBridge.predict_custom()` — `bridge.predict()` is reserved for the five upstream presets above.
+
+---
+
+## laya_review_tone
+
+Classify a code review comment's tone and priority.
+
+**Input:**
+```python
+class ReviewToneInput(BaseModel):
+    comment: str
+```
+
+**Output:**
+```python
+class ReviewToneOutput(BaseModel):
+    tone: str          # nit | suggestion | blocking | praise | question | off_topic
+    priority: str      # low | medium | high
+    confidence: float  # 0.0–1.0
+    details: dict
+```
+
+**When to use:**
+- Before deciding whether to reply to a review comment at all (skip `off_topic`)
+- Routing tone-suggestion replies to small models, blocking-tone replies to frontier
+- Triaging a backlog of review comments by priority
+
+**Limitations:** Trained on review-comment-like text. Won't work well on Slack chatter or unrelated prose.
+
+**Where the parser lives:** `laya_mcp/tools/review_tone.py`
+
+---
+
+## laya_bug_severity
+
+Classify a bug report's severity and area.
+
+**Input:**
+```python
+class BugSeverityInput(BaseModel):
+    text: str
+```
+
+**Output:**
+```python
+class BugSeverityOutput(BaseModel):
+    severity: str      # S0_critical | S1_high | S2_medium | S3_low
+    area: str          # frontend | backend | infra | docs | tests | deps | auth | unknown
+    confidence: float  # 0.0–1.0
+    details: dict
+```
+
+**When to use:**
+- Auto-triage incoming bug reports (GitHub Issues, Linear, email)
+- Surface S0/S1 bugs to on-call rotations
+- Group bugs by area for sprint planning
+
+**S0 vs S1:** S0 = "users are blocked right now" (auth down, data loss, security). S1 = "users are degraded" (slow, broken edge case, intermittent).
+
+**Where the parser lives:** `laya_mcp/tools/bug_severity.py`
+
+---
+
+## laya_commit_classify
+
+Classify a commit message by type, scope, and risk.
+
+**Input:**
+```python
+class CommitClassifyInput(BaseModel):
+    message: str
+```
+
+**Output:**
+```python
+class CommitClassifyOutput(BaseModel):
+    type: str          # feat | fix | refactor | chore | docs | test | perf | build | ci | revert
+    scope: str         # api | ui | db | infra | deps | auth | none
+    risk: str          # low | medium | high
+    confidence: float  # 0.0–1.0
+    details: dict
+```
+
+**When to use:**
+- Normalize commit messages that don't follow Conventional Commits
+- Auto-tag PRs based on commit content
+- Surface high-risk commits for review
+
+**Risk signal:** "high" doesn't mean broken — it means "this changes auth / db / infra / public API surface". Use as a routing signal not a quality signal.
+
+**Where the parser lives:** `laya_mcp/tools/commit_classify.py`
+
+---
+
+## laya_test_priority
+
+Classify a test's run priority and the reason.
+
+**Input:**
+```python
+class TestPriorityInput(BaseModel):
+    description: str   # test name + description, or full test body
+```
+
+**Output:**
+```python
+class TestPriorityOutput(BaseModel):
+    priority: str     # skip | low | medium | high | critical
+    reason: str        # covers_new_code | covers_bug_fix | covers_regression | smoke_test | redundant | flaky
+    confidence: float  # 0.0–1.0
+    details: dict
+```
+
+**When to use:**
+- Decide test execution order on a CI runner with limited time
+- Skip `redundant` / `flaky` tests in fast-feedback loops
+- Surface `critical` / `covers_regression` tests for pre-merge runs
+
+**Where the parser lives:** `laya_mcp/tools/test_priority.py`
+
+---
+
+## laya_secret_risk
+
+Detect leaked secrets / credentials in text.
+
+**Input:**
+```python
+class SecretRiskInput(BaseModel):
+    text: str
+```
+
+**Output:**
+```python
+class SecretRiskOutput(BaseModel):
+    kind: str          # none | api_key | password | token | cert | ssh_key | aws_creds | other
+    risk: str          # none | low | medium | high | critical
+    confidence: float  # 0.0–1.0
+    details: dict
+```
+
+**When to use:**
+- Before saving text to memory (catch leaked creds before they're persisted)
+- Before posting text to public channels
+- Before including text in commit messages / PR descriptions
+
+**Different from `laya_guard`:** `laya_guard` detects prompt-injection (attempts to manipulate the agent). `laya_secret_risk` detects leaked credentials (data exposure). They're separate concerns — run both.
+
+**Where the parser lives:** `laya_mcp/tools/secret_risk.py`
+
+---
+
+## laya_diff_intent
+
+Classify a PR diff: intent, scope, risk.
+
+**Input:**
+```python
+class DiffIntentInput(BaseModel):
+    diff: str   # unified diff text
+```
+
+**Output:**
+```python
+class DiffIntentOutput(BaseModel):
+    intent: str       # add_feature | fix_bug | refactor | perf | docs | test | build | chore | revert
+    scope: str        # single_file | module | cross_cutting
+    risk: str         # low | medium | high
+    confidence: float # 0.0–1.0
+    details: dict
+```
+
+**When to use:**
+- Auto-generate PR descriptions from the diff
+- Route PRs by intent (e.g., `chore` → fast-track, `cross_cutting` → senior reviewer)
+- Trigger different CI pipelines by intent (e.g., `perf` → run benchmarks)
+
+**`risk` here** = "blast radius if this breaks", not "is this buggy". `cross_cutting` + `high` = needs deep review. `single_file` + `low` = likely safe.
+
+**Where the parser lives:** `laya_mcp/tools/diff_intent.py`
+
+---
+
 ## Error handling
 
 Tools **raise on any unexpected Laya output** rather than returning silent defaults. The server catches these and returns them as MCP error content blocks (with `isError=true`).
