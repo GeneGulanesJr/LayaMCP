@@ -32,8 +32,9 @@ import logging
 from typing import Any
 
 import uvicorn
+from fastapi import FastAPI, Request
 from mcp.server import Server
-from mcp.server.fastapi import create_fastapi_app
+from mcp.server.sse import SseServerTransport
 from pydantic import ValidationError
 
 from .bridge import LayaBridge
@@ -122,9 +123,43 @@ def _error_block(message: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# FastAPI app with MCP routes mounted.
+# Plain FastAPI app with MCP SSE transport mounted manually + /health.
+#
+# Spec §9 / research 2026-09-22: mcp.server.fastapi.create_fastapi_app was
+# removed in mcp 1.x and is broken on every released SDK today. Use the
+# SSE transport directly on a plain FastAPI app. The /health endpoint
+# is auth-exempt so the Docker healthcheck can probe TCP port-open
+# ≈ models-resident (per spec §9 + the Phase 4 infra/smoke.sh contract).
 # ---------------------------------------------------------------------------
-app = create_fastapi_app(server)
+sse = SseServerTransport("/messages/")
+app = FastAPI(title="layamcp")
+
+
+@app.get("/health")
+async def health() -> dict[str, Any]:
+    """TCP-port-open ≈ models-resident (models loaded at module import).
+
+    spec §9: 'TCP healthcheck (port-open ≈ models-resident)' — if we
+    answered, the models are loaded. No internal state to expose.
+    """
+    return {"status": "ok", "tools": len(TOOLS)}
+
+
+@app.get("/sse")
+async def sse_endpoint(request: Request) -> None:
+    """MCP SSE endpoint. Clients open this for the event stream."""
+    async with sse.connect_sse(
+        request.scope, request.receive, request._send
+    ) as (read_stream, write_stream):
+        await server.run(
+            read_stream, write_stream, server.create_initialization_options()
+        )
+
+
+@app.post("/messages/")
+async def messages_endpoint(request: Request) -> None:
+    """MCP client → server POST endpoint (paired with /sse)."""
+    await sse.handle_post_message(request.scope, request.receive, request._send)
 
 
 def main() -> None:
